@@ -1,0 +1,1 @@
+{"detail":[{"type":"missing","loc":["body","action"],"msg":"Field required","input":{"action_type":"assign","ticket_id":"t1","department":"billing"}}]}

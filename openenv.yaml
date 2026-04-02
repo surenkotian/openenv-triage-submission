@@ -1,0 +1,17 @@
+version: '1'
+name: 'CustomerSupportTriage'
+description: >
+  A complete, real-world OpenEnv environment simulating customer support ticket triage, 
+  where an AI agent must categorize, resolve, or request information for various tickets.
+agent_entrypoint: 'uvicorn env:app --host 0.0.0.0 --port 7860'
+port: 7860
+tasks:
+  - id: 0
+    name: 'Easy: Single Ticket'
+    description: 'Assign a simple billing ticket to the billing department.'
+  - id: 1
+    name: 'Medium: Multiple Tickets and Spam'
+    description: 'Assign three incoming tickets accurately and close the spam.'
+  - id: 2
+    name: 'Hard: Incomplete Information'
+    description: 'Request missing information dynamically from a customer before assigning.'
