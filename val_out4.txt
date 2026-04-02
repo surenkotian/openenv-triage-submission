@@ -1,6 +1,0 @@
-[FAIL] openenv-submission: Not ready for multi-mode deployment
-
-Issues found:
-  - Server entry point should reference main function, got: server.app:app
-  - server/app.py missing main() function
-  - server/app.py main() function not callable (missing if __name__ == '__main__')

@@ -1,6 +1,0 @@
-[FAIL] openenv-submission: Not ready for multi-mode deployment
-
-Issues found:
-  - Missing uv.lock - run 'uv lock' to generate it
-  - Missing [project.scripts] server entry point
-  - Missing server/app.py
