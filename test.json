@@ -1,0 +1,1 @@
+{"observation":{"open_tickets":[{"id":"t1","subject":"Billing issue","body":"My account is locked."}],"agent_message":"Agent starting task 0"},"reward":0.0,"done":false}
