@@ -54,6 +54,9 @@ def log_end(success: bool, steps: int, rewards: List[float]):
     rewards_str = ",".join([f"{r:.2f}" for r in rewards])
     print(f"[END] success={success_str} steps={steps} rewards={rewards_str}", flush=True)
 
+# API Configuration Diagnostics
+print(f"API Diagnostics: Base URL={API_BASE_URL}, Model={MODEL_NAME}, Token Present={bool(HF_TOKEN)}", flush=True)
+
 async def get_model_action(client: AsyncOpenAI, step: int, obs: Dict[str, Any], history: List[str]) -> Dict[str, Any]:
     system_prompt = """You are an excellent customer support triage agent. 
 You will be given the current state of tickets and must choose ONE action from:
@@ -66,16 +69,26 @@ Respond ONLY with valid JSON.
     history_str = "\n".join(history)
     user_prompt = f"Observation: {json.dumps(obs)}\nHistory:\n{history_str}\nWhat is your next action JSON?"
     
-    response = await client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=0.0
-    )
+    try:
+        response = await client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.0
+        )
+        content = response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"ERROR: OpenAI API call failed: {e}", flush=True)
+        # Try to print more details for 400 errors
+        if hasattr(e, 'response'):
+             try:
+                 print(f"ERROR DETAILS: {e.response.text}", flush=True)
+             except:
+                 pass
+        return {"action_type": "close", "ticket_id": "t1", "reason": f"api_error_{type(e).__name__}"}
     
-    content = response.choices[0].message.content.strip()
     if content.startswith("```json"):
         content = content.replace("```json\n", "").replace("\n```", "")
     elif content.startswith("```"):
