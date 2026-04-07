@@ -3,6 +3,8 @@ import asyncio
 import json
 import sys
 import subprocess
+import importlib
+import site
 from typing import List, Dict, Any
 
 # Self-installer for missing dependencies to handle validator environment issues
@@ -10,13 +12,19 @@ def ensure_package(package_name, import_name=None):
     if import_name is None:
         import_name = package_name.split('>=')[0].split('==')[0]
     try:
-        __import__(import_name)
+        importlib.import_module(import_name)
     except ImportError:
         print(f"Installing missing dependency: {package_name}", flush=True)
         try:
             subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
+            # Force Python to refresh its module cache and site-packages
+            importlib.invalidate_caches()
+            importlib.reload(site)
         except Exception as e:
             print(f"Failed to install {package_name}: {e}", flush=True)
+
+# Pre-import diagnostics
+print(f"Python: {sys.version}", flush=True)
 
 # Pre-import checks
 ensure_package("openai>=1.0.0", "openai")
