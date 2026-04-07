@@ -1,7 +1,27 @@
 import os
 import asyncio
 import json
+import sys
+import subprocess
 from typing import List, Dict, Any
+
+# Self-installer for missing dependencies to handle validator environment issues
+def ensure_package(package_name, import_name=None):
+    if import_name is None:
+        import_name = package_name.split('>=')[0].split('==')[0]
+    try:
+        __import__(import_name)
+    except ImportError:
+        print(f"Installing missing dependency: {package_name}", flush=True)
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
+        except Exception as e:
+            print(f"Failed to install {package_name}: {e}", flush=True)
+
+# Pre-import checks
+ensure_package("openai>=1.0.0", "openai")
+ensure_package("httpx>=0.24.0", "httpx")
+
 from openai import AsyncOpenAI
 import httpx
 
@@ -114,4 +134,10 @@ async def main():
         await run_task(i)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Unhandled exception in inference.py: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
