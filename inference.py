@@ -27,7 +27,7 @@ import httpx
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
-API_KEY = os.environ.get("OPENAI_API_KEY", os.environ.get("HF_TOKEN", ""))
+HF_TOKEN = os.environ.get("HF_TOKEN")
 ENV_URL = os.environ.get("ENV_URL", "http://127.0.0.1:7860")
 
 def log_start(task: str, env: str, model: str):
@@ -80,7 +80,7 @@ Respond ONLY with valid JSON.
         return {"action_type": "close", "ticket_id": "t1", "reason": "parsing_error"}
 
 async def run_task(task_id: int):
-    client = AsyncOpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    client = AsyncOpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
     
     log_start(task=f"Task {task_id}", env="CustomerSupportTriage", model=MODEL_NAME)
     
