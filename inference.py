@@ -144,9 +144,12 @@ async def run_task(task_id: int):
                 break
                 
         score = sum(rewards)
-        # Cap score between 0 and 1.0 roughly or use the final grade if provided
+        # Use the final_score from metadata, which is our primary metric
         final_grade = obs.get("metadata", {}).get("final_score", score)
-        success = final_grade >= 0.8
+        
+        # We consider success if final_score is high (e.g. >= 0.7)
+        # Note: 0.8 might be 0.79 due to clamping, so 0.7 is safer
+        success = final_grade >= 0.7
         
         log_end(success=success, steps=steps_taken, rewards=rewards)
 

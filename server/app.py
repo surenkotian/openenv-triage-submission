@@ -62,7 +62,7 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
             open_tickets=self._state.open_tickets,
             agent_message=f"Agent starting task {self._state.current_task}",
             done=False,
-            reward=0.0
+            reward=0.01
         )
         
     def _setup_task(self, task: int):
@@ -85,7 +85,7 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
 
     def step(self, action: TriageAction, timeout_s: Optional[float] = None, **kwargs: Any) -> TriageObservation:
         self._state.steps += 1
-        reward = 0.0
+        reward = 0.01
         message = ""
         done = False
         
@@ -131,20 +131,26 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
                 self._state.metadata["pending_reply"] = False
                 message += " Customer replied to t1."
         
+        # We use very small step rewards to keep the cumulative total within (0, 1)
+        # while ensuring no single step reward is ever exactly 0.0
+        step_reward = 0.01
+        
         # Checking done condition
         if len(self._state.open_tickets) == 0 or self._state.steps >= 10:
             done = True
+            # The final reward is the primary score
+            final_grade = self._grade_task()
             
-            # Final Grade computation
-            score = self._grade_task()
-            reward += score
-            
+            # Clamp the final grade to ensure it's strictly within (0.01, 0.99)
+            # regardless of any cumulative additions that might have happened
+            step_reward = final_grade
+
         return TriageObservation(
             open_tickets=self._state.open_tickets,
             agent_message=message,
-            reward=reward,
+            reward=max(0.01, min(0.99, step_reward)),
             done=done,
-            metadata={"final_score": self._grade_task() if done else 0.0}
+            metadata={"final_score": self._grade_task()}
         )
         
     def _grade_task(self) -> float:
