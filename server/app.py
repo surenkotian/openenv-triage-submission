@@ -158,16 +158,16 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
         score = 0.0
         if task == 0:
             if self._state.assigned_tickets.get("t1") == "billing":
-                score = 1.0
+                score = 0.99
         elif task == 1:
-            if self._state.assigned_tickets.get("t1") == "sales": score += 0.33
-            if "t2" in self._state.closed_tickets: score += 0.33
-            if self._state.assigned_tickets.get("t3") == "tech_support": score += 0.34
+            if self._state.assigned_tickets.get("t1") == "sales": score += 0.32
+            if "t2" in self._state.closed_tickets: score += 0.32
+            if self._state.assigned_tickets.get("t3") == "tech_support": score += 0.32
         elif task == 2:
             if self._state.assigned_tickets.get("t1") in ["billing", "returns", "sales"]:
-                score += 0.5 # only if they assigned it
+                score += 0.49 # only if they assigned it
             if self._state.assigned_tickets.get("t2") == "tech_support":
-                score += 0.5
+                score += 0.49
         
         # STRICTLY between 0 and 1 as per Phase 2 requirements (0.01 to 0.99)
         return max(0.01, min(0.99, score))
