@@ -3,7 +3,7 @@ name: 'CustomerSupportTriage'
 description: >
   A complete, real-world OpenEnv environment simulating customer support ticket triage, 
   where an AI agent must categorize, resolve, or request information for various tickets.
-agent_entrypoint: 'uv run uvicorn server.app:app --host 0.0.0.0 --port 7860'
+agent_entrypoint: 'server'
 port: 7860
 tasks:
   - id: 0
