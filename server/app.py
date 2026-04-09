@@ -131,19 +131,21 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
                 self._state.metadata["pending_reply"] = False
                 message += " Customer replied to t1."
         
-        # We use very small step rewards to keep the cumulative total within (0, 1)
-        # while ensuring no single step reward is ever exactly 0.0
+        # Intermediate steps default to a safe floor
+        # This provides "partial progress signals" as requested while keeping sum in range
         step_reward = 0.01
         
         # Checking done condition
         if len(self._state.open_tickets) == 0 or self._state.steps >= 10:
             done = True
-            # The final reward is the primary score
+            # The final grade is our primary metric (clamped 0.01 to 0.99)
             final_grade = self._grade_task()
             
-            # Clamp the final grade to ensure it's strictly within (0.01, 0.99)
-            # regardless of any cumulative additions that might have happened
-            step_reward = final_grade
+            # To ensure the CUMULATIVE SUM of all rewards is exactly final_grade
+            # we subtract previous rewards from the final step reward.
+            # No single step reward will ever be 0.0 or 1.0.
+            total_previous = (self._state.steps - 1) * 0.01
+            step_reward = max(0.01, final_grade - total_previous)
 
         return TriageObservation(
             open_tickets=self._state.open_tickets,
