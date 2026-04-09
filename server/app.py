@@ -40,7 +40,6 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
         CustomerSupportEnv._global_state = TriageState(open_tickets=[])
         self._state = CustomerSupportEnv._global_state
         
-        # Load task based on metadata or random
         task = 0
         if episode_id is not None:
             try:
@@ -55,14 +54,13 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
                 
         self._state.current_task = max(0, min(task, self.num_tasks - 1))
         self._state.task_started = True
-        
         self._setup_task(self._state.current_task)
         
         return TriageObservation(
             open_tickets=self._state.open_tickets,
             agent_message=f"Agent starting task {self._state.current_task}",
             done=False,
-            reward=0.01
+            reward=0.5
         )
         
     def _setup_task(self, task: int):
@@ -85,7 +83,6 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
 
     def step(self, action: TriageAction, timeout_s: Optional[float] = None, **kwargs: Any) -> TriageObservation:
         self._state.steps += 1
-        reward = 0.01
         message = ""
         done = False
         
@@ -94,34 +91,25 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
         
         if ticket is None:
             message = "Error: Invalid ticket ID."
-            reward -= 0.1
         else:
             if action.action_type == "assign":
                 if not action.department:
                     message = "Error: assign requires a department."
-                    reward -= 0.1
                 else:
                     self._state.assigned_tickets[ticket.id] = action.department
                     self._state.open_tickets.remove(ticket)
                     message = f"Ticket {ticket.id} assigned to {action.department}."
-                    reward += 0.2
             elif action.action_type == "close":
                 self._state.closed_tickets[ticket.id] = action.reason or "none"
                 self._state.open_tickets.remove(ticket)
                 message = f"Ticket {ticket.id} closed."
-                reward += 0.1
             elif action.action_type == "request_info":
                 if not action.message:
                     message = "Error: request_info requires a message."
-                    reward -= 0.1
                 else:
                     message = f"Requested info for {ticket.id}."
-                    # specifically for task 2 triggers reply
                     if self._state.current_task == 2 and ticket.id == "t1":
                         self._state.metadata["pending_reply"] = True
-                        reward += 0.5
-                    else:
-                        reward -= 0.1 # Not needed here
 
         # Task 2 dynamic update
         if self._state.current_task == 2 and self._state.metadata.get("pending_reply"):
@@ -131,30 +119,23 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
                 self._state.metadata["pending_reply"] = False
                 message += " Customer replied to t1."
         
-        # Intermediate steps default to a safe floor
-        # This provides "partial progress signals" as requested while keeping sum in range
-        step_reward = 0.01
-        
-        # Checking done condition
+        # Check done condition
         if len(self._state.open_tickets) == 0 or self._state.steps >= 10:
             done = True
-            # The final grade is our primary metric (clamped 0.1 to 0.9)
-            final_grade = self._grade_task()
-            
-            # To ensure the CUMULATIVE SUM (including reset) is exactly final_grade
-            # we subtract:
-            # 1. The reset reward (0.01)
-            # 2. All previous step rewards ((steps-1) * 0.01)
-            # Combined, we subtract self._state.steps * 0.01
-            total_already_given = self._state.steps * 0.01
-            step_reward = max(0.01, final_grade - total_already_given)
+
+        # Compute the task grade - ONLY returned as reward on terminal step
+        grade = self._grade_task()
+        
+        # Non-terminal: reward = 0.5 (safe mid-range partial signal)
+        # Terminal: reward = grade (the actual task score, strictly in (0, 1))
+        step_reward = grade if done else 0.5
 
         return TriageObservation(
             open_tickets=self._state.open_tickets,
             agent_message=message,
-            reward=max(0.01, min(0.99, step_reward)),
+            reward=step_reward,
             done=done,
-            metadata={"final_score": self._grade_task()}
+            metadata={"final_score": grade}
         )
         
     def _grade_task(self) -> float:
@@ -162,19 +143,19 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
         score = 0.0
         if task == 0:
             if self._state.assigned_tickets.get("t1") == "billing":
-                score = 0.99
+                score = 0.85
         elif task == 1:
-            if self._state.assigned_tickets.get("t1") == "sales": score += 0.32
-            if "t2" in self._state.closed_tickets: score += 0.32
-            if self._state.assigned_tickets.get("t3") == "tech_support": score += 0.32
+            if self._state.assigned_tickets.get("t1") == "sales": score += 0.28
+            if "t2" in self._state.closed_tickets: score += 0.28
+            if self._state.assigned_tickets.get("t3") == "tech_support": score += 0.28
         elif task == 2:
             if self._state.assigned_tickets.get("t1") in ["billing", "returns", "sales"]:
-                score += 0.49 # only if they assigned it
+                score += 0.42
             if self._state.assigned_tickets.get("t2") == "tech_support":
-                score += 0.49
+                score += 0.42
         
-        # Safe range [0.1, 0.9] to avoid boundary issues and floating point sum errors
-        return max(0.1, min(0.9, score))
+        # Clamp to [0.15, 0.85] - well within (0, 1) with large safety margin
+        return max(0.15, min(0.85, score))
 
     @property
     def state(self) -> TriageState:
