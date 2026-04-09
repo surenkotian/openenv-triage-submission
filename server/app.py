@@ -138,14 +138,16 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
         # Checking done condition
         if len(self._state.open_tickets) == 0 or self._state.steps >= 10:
             done = True
-            # The final grade is our primary metric (clamped 0.01 to 0.99)
+            # The final grade is our primary metric (clamped 0.1 to 0.9)
             final_grade = self._grade_task()
             
-            # To ensure the CUMULATIVE SUM of all rewards is exactly final_grade
-            # we subtract previous rewards from the final step reward.
-            # No single step reward will ever be 0.0 or 1.0.
-            total_previous = (self._state.steps - 1) * 0.01
-            step_reward = max(0.01, final_grade - total_previous)
+            # To ensure the CUMULATIVE SUM (including reset) is exactly final_grade
+            # we subtract:
+            # 1. The reset reward (0.01)
+            # 2. All previous step rewards ((steps-1) * 0.01)
+            # Combined, we subtract self._state.steps * 0.01
+            total_already_given = self._state.steps * 0.01
+            step_reward = max(0.01, final_grade - total_already_given)
 
         return TriageObservation(
             open_tickets=self._state.open_tickets,
@@ -171,8 +173,8 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
             if self._state.assigned_tickets.get("t2") == "tech_support":
                 score += 0.49
         
-        # STRICTLY between 0 and 1 as per Phase 2 requirements (0.01 to 0.99)
-        return max(0.01, min(0.99, score))
+        # Safe range [0.1, 0.9] to avoid boundary issues and floating point sum errors
+        return max(0.1, min(0.9, score))
 
     @property
     def state(self) -> TriageState:
