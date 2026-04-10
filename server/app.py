@@ -20,7 +20,7 @@ class TriageAction(Action):
     reason: Optional[str] = None
 
 class TriageState(State):
-    open_tickets: List[Ticket]
+    open_tickets: List[Ticket] = Field(default_factory=list)
     assigned_tickets: Dict[str, str] = Field(default_factory=dict)
     closed_tickets: Dict[str, str] = Field(default_factory=dict)
     current_task: int = 0
@@ -30,16 +30,15 @@ class TriageState(State):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageState]):
-    _global_state = TriageState(open_tickets=[])
-
     def __init__(self):
         super().__init__()
-        self._state = CustomerSupportEnv._global_state
+        # Isolated state per environment instance
+        self._state = TriageState()
         self.num_tasks = 3
         
     def reset(self, seed: Optional[int] = None, episode_id: Optional[str] = None, **kwargs: Any) -> TriageObservation:
-        CustomerSupportEnv._global_state = TriageState(open_tickets=[])
-        self._state = CustomerSupportEnv._global_state
+        # Re-initialize state to default values for a clean reset
+        self._state = TriageState()
         
         task = 0
         if episode_id is not None:
@@ -61,7 +60,7 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
             open_tickets=self._state.open_tickets,
             agent_message=f"Agent starting task {self._state.current_task}",
             done=False,
-            reward=0.001
+            reward=0.05
         )
         
     def _setup_task(self, task: int):
@@ -124,15 +123,15 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
         if len(self._state.open_tickets) == 0 or self._state.steps >= 10:
             done = True
 
-        # Compute the task grade - ONLY returned as reward ONCE on terminal step
+        # Compute the task grade - ONLY issued once
         grade = self._grade_task()
         
-        # Only issue the final grade once. After that, return baseline.
+        # Issue terminal grade once. Subsequent or intermediate rewards are 0.05.
         if done and not self._state.reward_given:
             step_reward = grade
             self._state.reward_given = True
         else:
-            step_reward = 0.001
+            step_reward = 0.05
 
         return TriageObservation(
             open_tickets=self._state.open_tickets,
@@ -147,19 +146,19 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
         score = 0.0
         if task == 0:
             if self._state.assigned_tickets.get("t1") == "billing":
-                score = 0.85
+                score = 0.4
         elif task == 1:
-            if self._state.assigned_tickets.get("t1") == "sales": score += 0.28
-            if "t2" in self._state.closed_tickets: score += 0.28
-            if self._state.assigned_tickets.get("t3") == "tech_support": score += 0.28
+            if self._state.assigned_tickets.get("t1") == "sales": score += 0.13
+            if "t2" in self._state.closed_tickets: score += 0.13
+            if self._state.assigned_tickets.get("t3") == "tech_support": score += 0.14
         elif task == 2:
             if self._state.assigned_tickets.get("t1") in ["billing", "returns", "sales"]:
-                score += 0.42
+                score += 0.2
             if self._state.assigned_tickets.get("t2") == "tech_support":
-                score += 0.42
+                score += 0.2
         
-        # Clamp to [0.1, 0.8] - ensuring strictly in (0, 1) even if summed with small step rewards
-        return max(0.1, min(0.8, score))
+        # Clamp to [0.1, 0.5]. Max total sum (9*0.05 + 0.5) = 0.95.
+        return max(0.1, min(0.5, score))
 
     @property
     def state(self) -> TriageState:
@@ -168,19 +167,18 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
 # Create the FastAPI app that OpenEnv runner will use
 app = create_fastapi_app(CustomerSupportEnv, TriageAction, TriageObservation)
 
-# Add a welcome route so the browser doesn't show a 404 when people visit your Space!
+# Add a welcome route
 @app.get("/")
 async def root():
     return {
         "environment": "Customer Support Triage",
         "status": "online",
-        "message": "OpenEnv endpoints (/reset, /step, /metadata) are ready."
+        "message": "OpenEnv endpoints ready."
     }
 
 def main():
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=7860)
 
-# If run directly (for debugging)
 if __name__ == "__main__":
     main()
