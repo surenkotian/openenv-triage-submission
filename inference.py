@@ -52,7 +52,7 @@ def log_end(success: bool, steps: int, rewards: List[float]):
     # Strictly following: [END] success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
     success_str = str(success).lower()
     # Ensure every reward in the log is safely within (0, 1) range
-    rewards_str = ",".join([f"{max(0.15, min(0.85, r)):.2f}" for r in rewards])
+    rewards_str = ",".join([f"{max(0.01, min(0.99, r)):.2f}" for r in rewards])
     print(f"[END] success={success_str} steps={steps} rewards={rewards_str}", flush=True)
 
 # API Configuration Diagnostics
@@ -127,16 +127,16 @@ async def run_task(task_id: int):
             
             resp = await http.post(f"{ENV_URL}/step", json={"action": action_dict})
             if resp.status_code != 200:
-                log_step(step=step, action=action_str, reward=0.5, done=True, error=resp.text)
-                rewards.append(0.5)
+                log_step(step=step, action=action_str, reward=0.01, done=True, error=resp.text)
+                rewards.append(0.01)
                 break
                 
             obs = resp.json()
             # Clamp reward to be strictly within (0, 1)
-            raw_reward = obs.get("reward", 0.5)
+            raw_reward = obs.get("reward", 0.01)
             if raw_reward is None:
-                raw_reward = 0.5
-            reward = max(0.15, min(0.85, float(raw_reward)))
+                raw_reward = 0.01
+            reward = max(0.01, min(0.99, float(raw_reward)))
             done = obs.get("done", False)
             
             rewards.append(reward)
@@ -150,10 +150,10 @@ async def run_task(task_id: int):
                 break
                 
         # Use the final_score from metadata as the primary task metric
-        final_grade = obs.get("metadata", {}).get("final_score", 0.5)
+        final_grade = obs.get("metadata", {}).get("final_score", 0.01)
         if final_grade is None:
-            final_grade = 0.5
-        final_grade = max(0.15, min(0.85, float(final_grade)))
+            final_grade = 0.01
+        final_grade = max(0.1, min(0.8, float(final_grade)))
         
         success = final_grade >= 0.5
         

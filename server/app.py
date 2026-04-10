@@ -60,7 +60,7 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
             open_tickets=self._state.open_tickets,
             agent_message=f"Agent starting task {self._state.current_task}",
             done=False,
-            reward=0.5
+            reward=0.01
         )
         
     def _setup_task(self, task: int):
@@ -126,9 +126,9 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
         # Compute the task grade - ONLY returned as reward on terminal step
         grade = self._grade_task()
         
-        # Non-terminal: reward = 0.5 (safe mid-range partial signal)
+        # Non-terminal: reward = 0.01 (small positive signal)
         # Terminal: reward = grade (the actual task score, strictly in (0, 1))
-        step_reward = grade if done else 0.5
+        step_reward = grade if done else 0.01
 
         return TriageObservation(
             open_tickets=self._state.open_tickets,
@@ -154,8 +154,8 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
             if self._state.assigned_tickets.get("t2") == "tech_support":
                 score += 0.42
         
-        # Clamp to [0.15, 0.85] - well within (0, 1) with large safety margin
-        return max(0.15, min(0.85, score))
+        # Clamp to [0.1, 0.8] - ensuring strictly in (0, 1) even if summed with small step rewards
+        return max(0.1, min(0.8, score))
 
     @property
     def state(self) -> TriageState:
