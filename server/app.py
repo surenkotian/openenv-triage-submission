@@ -26,6 +26,7 @@ class TriageState(State):
     current_task: int = 0
     steps: int = 0
     task_started: bool = False
+    reward_given: bool = False
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageState]):
@@ -60,7 +61,7 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
             open_tickets=self._state.open_tickets,
             agent_message=f"Agent starting task {self._state.current_task}",
             done=False,
-            reward=0.01
+            reward=0.001
         )
         
     def _setup_task(self, task: int):
@@ -123,12 +124,15 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
         if len(self._state.open_tickets) == 0 or self._state.steps >= 10:
             done = True
 
-        # Compute the task grade - ONLY returned as reward on terminal step
+        # Compute the task grade - ONLY returned as reward ONCE on terminal step
         grade = self._grade_task()
         
-        # Non-terminal: reward = 0.01 (small positive signal)
-        # Terminal: reward = grade (the actual task score, strictly in (0, 1))
-        step_reward = grade if done else 0.01
+        # Only issue the final grade once. After that, return baseline.
+        if done and not self._state.reward_given:
+            step_reward = grade
+            self._state.reward_given = True
+        else:
+            step_reward = 0.001
 
         return TriageObservation(
             open_tickets=self._state.open_tickets,
