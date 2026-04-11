@@ -60,7 +60,8 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
             open_tickets=self._state.open_tickets,
             agent_message=f"Agent starting task {self._state.current_task}",
             done=False,
-            reward=0.05
+            # Start with a non-zero reward in the (0, 1) range
+            reward=0.01
         )
         
     def _setup_task(self, task: int):
@@ -126,12 +127,12 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
         # Compute the task grade - ONLY issued once
         grade = self._grade_task()
         
-        # Issue terminal grade once. Subsequent or intermediate rewards are 0.05.
+        # Issue terminal grade once. Intermediate rewards are 0.01.
         if done and not self._state.reward_given:
             step_reward = grade
             self._state.reward_given = True
         else:
-            step_reward = 0.05
+            step_reward = 0.01
 
         return TriageObservation(
             open_tickets=self._state.open_tickets,
@@ -157,14 +158,15 @@ class CustomerSupportEnv(Environment[TriageAction, TriageObservation, TriageStat
             if self._state.assigned_tickets.get("t2") == "tech_support":
                 score += 0.2
         
-        # Clamp to [0.1, 0.5]. Max total sum (9*0.05 + 0.5) = 0.95.
+        # Clamp to [0.1, 0.5]. Max task sum: (9 * 0.01) + 0.5 = 0.59.
+        # This is guaranteed to be strictly in (0, 1) and not round to 0.0 or 1.0.
         return max(0.1, min(0.5, score))
 
     @property
     def state(self) -> TriageState:
         return self._state
 
-# Create the FastAPI app that OpenEnv runner will use
+# Create the FastAPI app
 app = create_fastapi_app(CustomerSupportEnv, TriageAction, TriageObservation)
 
 # Add a welcome route
