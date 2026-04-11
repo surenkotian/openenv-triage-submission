@@ -9,9 +9,12 @@ tasks:
   - id: 0
     name: 'Easy: Single Ticket'
     description: 'Assign a simple billing ticket to the billing department.'
+    grader: "grader:grade_task_0"
   - id: 1
     name: 'Medium: Multiple Tickets and Spam'
     description: 'Assign three incoming tickets accurately and close the spam.'
+    grader: "grader:grade_task_1"
   - id: 2
     name: 'Hard: Incomplete Information'
     description: 'Request missing information dynamically from a customer before assigning.'
+    grader: "grader:grade_task_2"
